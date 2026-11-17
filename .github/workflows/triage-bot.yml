@@ -41,7 +41,7 @@ jobs:
         env:
           ITEM: ${{ github.event.issue.number || inputs.number }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          OPENCODE_CONFIG_CONTENT: '{"permissions":[{"action":"*","resource":"*","effect":"allow"}]}'
+          OPENCODE_CONFIG_CONTENT: '{"permission":{"*":"allow"}}'
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/prompt.md" <<EOF

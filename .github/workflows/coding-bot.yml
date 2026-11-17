@@ -63,7 +63,7 @@ jobs:
         env:
           ITEM: ${{ matrix.item.number }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          OPENCODE_CONFIG_CONTENT: '{"permissions":[{"action":"*","resource":"*","effect":"allow"}]}'
+          OPENCODE_CONFIG_CONTENT: '{"permission":{"*":"allow"}}'
         run: |
           set -euo pipefail
           BRANCH="bot/issue-$ITEM"
@@ -97,7 +97,7 @@ jobs:
         env:
           ITEM: ${{ matrix.item.number }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          OPENCODE_CONFIG_CONTENT: '{"permissions":[{"action":"*","resource":"*","effect":"allow"}]}'
+          OPENCODE_CONFIG_CONTENT: '{"permission":{"*":"allow"}}'
         run: |
           set -euo pipefail
           gh pr checkout "$ITEM"
