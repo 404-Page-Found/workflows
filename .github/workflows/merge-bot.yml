@@ -31,24 +31,33 @@ jobs:
           set -euo pipefail
           OWNER=${GH_REPO%%/*}
           REPO=${GH_REPO##*/}
-          READY=$(gh pr list --state open --limit 100 --json number,isDraft,mergeable,statusCheckRollup --jq '
+          READY=$(gh pr list --state open --limit 100 --json number,isDraft,mergeable,reviewDecision,statusCheckRollup --jq '
             [.[] | select(.isDraft | not)
               | select(.mergeable == "MERGEABLE")
+              | select(.reviewDecision == "APPROVED")
               | select((.statusCheckRollup | length) > 0)
               | select(all(.statusCheckRollup[];
                   if .__typename == "StatusContext" then .state == "SUCCESS"
                   else .status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED")) end))
               | .number]')
           for N in $(jq -r '.[]' <<< "$READY"); do
-            UNRESOLVED=$(gh api graphql -F owner="$OWNER" -F repo="$REPO" -F number="$N" -f query='
+            PR=$(gh api graphql -F owner="$OWNER" -F repo="$REPO" -F number="$N" -f query='
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                   pullRequest(number: $number) {
+                    latestOpinionatedReviews(first: 100, writersOnly: true) { nodes { state } }
                     reviewThreads(first: 100) { pageInfo { hasNextPage } nodes { isResolved } }
                   }
                 }
-              }' --jq '.data.repository.pullRequest.reviewThreads | if .pageInfo.hasNextPage then 1 else ([.nodes[] | select(.isResolved | not)] | length) end')
-            if [ "$UNRESOLVED" != "0" ]; then
+              }' --jq '.data.repository.pullRequest | {
+                writerApproved: ([.latestOpinionatedReviews.nodes[] | select(.state == "APPROVED")] | length) > 0,
+                unresolved: (.reviewThreads | if .pageInfo.hasNextPage then 1 else ([.nodes[] | select(.isResolved | not)] | length) end)
+              }')
+            if [ "$(jq -r .writerApproved <<< "$PR")" != "true" ]; then
+              echo "Skipping #$N: no approving review from a writer"
+              continue
+            fi
+            if [ "$(jq -r .unresolved <<< "$PR")" != "0" ]; then
               echo "Skipping #$N: unresolved review threads"
               continue
             fi
