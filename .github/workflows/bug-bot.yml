@@ -46,7 +46,7 @@ jobs:
       - name: Hunt for bugs
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          OPENCODE_CONFIG_CONTENT: '{"permissions":[{"action":"*","resource":"*","effect":"allow"}]}'
+          OPENCODE_CONFIG_CONTENT: '{"permission":{"*":"allow"}}'
           QUOTA: ${{ steps.quota.outputs.quota }}
         run: |
           cat > "$RUNNER_TEMP/prompt.md" <<EOF
