@@ -14,7 +14,7 @@ Source: https://github.com/404-Page-Found/workflows (default branch).
 Steps:
 1. Confirm the current directory is a git repository with a GitHub remote. If not, stop and tell me.
 2. Shallow-clone the source into a temporary directory outside this repo (e.g. `git clone --depth 1 https://github.com/404-Page-Found/workflows <tmp>`).
-3. Copy every `.github/workflows/*.yml` file from the source into this repo's `.github/workflows/`, creating the directory if needed. Also copy `scripts/run-opencode.sh` into this repo's `scripts/`, creating it if needed, and make it executable with `chmod +x`. Do not modify the file contents. If a file with the same name already exists:
+3. Copy every `.github/workflows/*.yml` file from the source into this repo's `.github/workflows/`, creating the directory if needed. Do not modify the file contents. If a file with the same name already exists:
    - If it is identical to the source, leave it unchanged.
    - If it differs, update it by replacing it with the source version, and record it as updated.
    - Never touch files in `.github/workflows/` that do not exist in the source.
