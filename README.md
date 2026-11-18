@@ -14,13 +14,13 @@ Source: https://github.com/404-Page-Found/workflows (default branch).
 Steps:
 1. Confirm the current directory is a git repository with a GitHub remote. If not, stop and tell me.
 2. Shallow-clone the source into a temporary directory outside this repo (e.g. `git clone --depth 1 https://github.com/404-Page-Found/workflows <tmp>`).
-3. Copy every `.github/workflows/*.yml` file from the source into this repo's `.github/workflows/`, creating the directory if needed. Do not modify the file contents. If a file with the same name already exists:
-   - If it is identical to the source, leave it unchanged.
-   - If it differs, update it by replacing it with the source version, and record it as updated.
+3. Copy every `.github/workflows/*.yml` file from the source into this repo's `.github/workflows/`, creating the directory if needed. Also copy `scripts/run-opencode.sh` into this repo's `scripts/`, creating it if needed, and make it executable with `chmod +x`. Do not modify the file contents. If a file with the same name already exists:
+   - If it is identical to the source (including its executable bit), leave it unchanged.
+   - If it differs in content or executable bit, update it by replacing it with the source version, and record it as updated.
    - Never touch files in `.github/workflows/` that do not exist in the source.
 4. Do not copy `docs/PROMPT.md` or `README.md`. Do not copy `LICENSE`.
-5. If no workflow files were added or updated, stop and tell me they are already up to date. Otherwise, create a new branch named `add-maintenance-bots` (or `update-maintenance-bots` if it already exists on the remote), commit the workflow files with the message "Add or update maintenance bot workflows", and push it. Do not push to the default branch.
-6. Open a pull request into the default branch with `gh pr create`, using a body that lists each workflow as added or updated, and the setup steps below.
+5. If no workflow files or `scripts/run-opencode.sh` were added or updated, stop and tell me they are already up to date. Otherwise, create a new branch named `add-maintenance-bots` (or `update-maintenance-bots` if it already exists on the remote), commit the workflow files and the script with the message "Add or update maintenance bot workflows", and push it. Do not push to the default branch.
+6. Open a pull request into the default branch with `gh pr create`, using a body that lists each workflow and `scripts/run-opencode.sh` as added or updated, and the setup steps below.
 7. Delete the temporary clone.
 8. Report back in 100 words or fewer, and include these one-time setup steps for me to run (do not run them without confirmation):
    - Create labels: `gh label create "assignee:coding-bot" --force` and `gh label create "bot-driving" --force`
