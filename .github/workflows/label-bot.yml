@@ -52,4 +52,4 @@ jobs:
           3. Add assignee:coding-bot ONLY if the item is an issue, it is implementation-ready (clear, scoped, actionable, no open questions), and its author has write access. Check the author with gh issue view or gh pr view --json author, then gh api repos/$GH_REPO/collaborators/<author-login>/permission --jq .permission, which must be admin, maintain, or write.
           4. Apply labels with gh issue edit or gh pr edit --add-label. Do not post comments.
           EOF
-          copilot -p "$(cat "$RUNNER_TEMP/prompt.md")" --allow-all
+          copilot -p "$(cat "$RUNNER_TEMP/prompt.md")" --model claude-haiku-5.5 --allow-all

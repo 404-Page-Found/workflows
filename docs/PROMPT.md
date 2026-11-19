@@ -1,7 +1,7 @@
 Create GitHub Actions workflows and docs for repo maintenance in this repository. Keep files concise.
 
 Global rules:
-- Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) and run it non-interactively with `copilot -p "<prompt>" --allow-all`, using the CLI's default model.
+- Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) - Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) and run it non-interactively with `copilot -p "<prompt>" --model claude-haiku-5.5 --allow-all`.
 - All workflows authenticate with the repo secret `GH_PAT` (my GitHub PAT). Use it for checkout, all `gh`/API calls, and Copilot CLI authentication via `COPILOT_GITHUB_TOKEN`. It must be a fine-grained PAT owned by my personal account, scoped to this repo, with repository permissions Contents, Issues, Pull requests, Commit statuses, Checks, Actions (read), and Metadata (read), plus the Account permission Copilot Requests: read. Classic PATs are not supported by Copilot CLI.
 - Every workflow has a `workflow_dispatch` trigger as a manual fallback.
 - Use least-privilege `permissions` and a `concurrency` group per workflow.
