@@ -32,6 +32,7 @@ Never print, log, or commit secret values.
 ## Setup
 
 1. **Add the `GH_PAT` secret.** Create a fine-grained PAT owned by your personal account (not an organization), with repository access set to only this repo and these permissions:
+   - Repository: **Contents** read and write, **Issues** read and write, **Pull requests** read and write, **Commit statuses** read, **Actions** read, and **Metadata** read (added automatically).
    - Account: **Copilot Requests** read.
 
    Classic PATs are not supported by Copilot CLI. Fine-grained PATs can't call the Checks API, so `gh pr checks` may fail. coding-bot then can't see failing checks, but it still handles review threads.
