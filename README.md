@@ -24,16 +24,18 @@ Steps:
 7. Delete the temporary clone.
 8. Report back in 100 words or fewer, and include these one-time setup steps for me to run (do not run them without confirmation):
    - Create labels: `gh label create "assignee:coding-bot" --force` and `gh label create "bot-driving" --force`
-   - Add repository secrets: `GH_PAT` (a PAT with access to this repo, used for checkout and `gh` calls) and `OPENCODE_API_KEY` (for the `opencode/hy4-flash-free` model).
+   - Add repository secret: `GH_PAT` (a fine-grained PAT owned by a personal account, scoped to this repo, with the repository permissions listed in Setup and the Account permission Copilot Requests: read; used for checkout, `gh` calls, and Copilot CLI authentication).
 
 Never print, log, or commit secret values.
 ```
 
 ## Setup
 
-1. **Add the `GH_PAT` secret.** Use a fine-grained PAT (or a classic PAT with `repo`) that has access to this repo. All bots use it for checkout and `gh` calls, so their actions are attributed to that account.
-2. **Add the `OPENCODE_API_KEY` secret** for the `opencode/hy4-flash-free` model.
-3. **Create the labels** used by the bots:
+1. **Add the `GH_PAT` secret.** Create a fine-grained PAT owned by your personal account (not an organization), with repository access set to only this repo and these permissions:
+   - Account: **Copilot Requests** read.
+
+   Classic PATs are not supported by Copilot CLI. Fine-grained PATs can't call the Checks API, so `gh pr checks` may fail. coding-bot then can't see failing checks, but it still handles review threads.
+2. **Create the labels** used by the bots:
 
    ```bash
    gh label create "assignee:coding-bot" --force
