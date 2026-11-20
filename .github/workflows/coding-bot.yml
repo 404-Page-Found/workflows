@@ -25,23 +25,30 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     outputs:
-      items: ${{ steps.find.outputs.items }}
+      type: ${{ steps.find.outputs.type }}
+      number: ${{ steps.find.outputs.number }}
     steps:
-      - name: Find issues and PRs to work on
+      - name: Pick one PR or issue to work on
         id: find
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          prs=$(gh pr list --label bot-driving --state open --limit 1000 --json number --jq '[.[] | {type: "pr", number}]')
-          issues='[]'
-          if [ "$(jq length <<< "$prs")" -le 5 ]; then
-            issues=$(gh issue list --label assignee:coding-bot --state open --json number --jq '[.[] | {type: "issue", number}]')
+          set -euo pipefail
+          pr=$(gh pr list --label bot-driving --state open --limit 1000 --json number,createdAt --jq 'sort_by(.createdAt) | .[0].number // empty')
+          if [ -n "$pr" ]; then
+            echo "type=pr" >> "$GITHUB_OUTPUT"
+            echo "number=$pr" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "items=$(jq -cn --argjson a "$issues" --argjson b "$prs" '$a + $b')" >> "$GITHUB_OUTPUT"
+          issue=$(gh issue list --label assignee:coding-bot --state open --limit 1000 --json number,createdAt --jq 'sort_by(.createdAt) | .[0].number // empty')
+          if [ -n "$issue" ]; then
+            echo "type=issue" >> "$GITHUB_OUTPUT"
+            echo "number=$issue" >> "$GITHUB_OUTPUT"
+          fi
 
   work:
     needs: discover
-    if: needs.discover.outputs.items != '[]'
+    if: needs.discover.outputs.number != ''
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -50,10 +57,6 @@ jobs:
       pull-requests: read
       checks: read
       actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        item: ${{ fromJSON(needs.discover.outputs.items) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,9 +78,9 @@ jobs:
 
       - name: Prepare branch for issue
         id: prepare
-        if: matrix.item.type == 'issue'
+        if: needs.discover.outputs.type == 'issue'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
@@ -93,9 +96,9 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Implement issue
-        if: matrix.item.type == 'issue' && steps.prepare.outputs.skip == 'false'
+        if: needs.discover.outputs.type == 'issue' && steps.prepare.outputs.skip == 'false'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -113,9 +116,9 @@ jobs:
 
       - name: Commit and push issue implementation
         id: push
-        if: matrix.item.type == 'issue' && steps.prepare.outputs.skip == 'false'
+        if: needs.discover.outputs.type == 'issue' && steps.prepare.outputs.skip == 'false'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
@@ -135,9 +138,9 @@ jobs:
 
       - name: Generate pull request title
         id: title
-        if: matrix.item.type == 'issue' && steps.push.outputs.pushed == 'true'
+        if: needs.discover.outputs.type == 'issue' && steps.push.outputs.pushed == 'true'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
         run: |
           set -euo pipefail
@@ -160,9 +163,9 @@ jobs:
           echo "title=$TITLE" >> "$GITHUB_OUTPUT"
 
       - name: Open pull request
-        if: matrix.item.type == 'issue' && steps.push.outputs.pushed == 'true'
+        if: needs.discover.outputs.type == 'issue' && steps.push.outputs.pushed == 'true'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           TITLE: ${{ steps.title.outputs.title }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -172,9 +175,9 @@ jobs:
 
       - name: Check out PR and decide whether work is needed
         id: gate
-        if: matrix.item.type == 'pr'
+        if: needs.discover.outputs.type == 'pr'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
@@ -210,9 +213,9 @@ jobs:
           echo "needed=true" >> "$GITHUB_OUTPUT"
 
       - name: Address review feedback and failing checks
-        if: matrix.item.type == 'pr' && steps.gate.outputs.needed == 'true'
+        if: needs.discover.outputs.type == 'pr' && steps.gate.outputs.needed == 'true'
         env:
-          ITEM: ${{ matrix.item.number }}
+          ITEM: ${{ needs.discover.outputs.number }}
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -224,7 +227,7 @@ jobs:
           copilot -p "$(cat "$RUNNER_TEMP/prompt.md")" --model claude-haiku-5.5 --allow-all
 
       - name: Commit and push review fixes
-        if: matrix.item.type == 'pr' && steps.gate.outputs.needed == 'true'
+        if: needs.discover.outputs.type == 'pr' && steps.gate.outputs.needed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
