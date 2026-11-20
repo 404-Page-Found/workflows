@@ -31,7 +31,7 @@ Never print, log, or commit secret values.
 
 ## Setup
 
-1. **Add the `GH_PAT` secret.** Create a fine-grained PAT owned by your personal account (not an organization), with repository access set to only this repo and these repository permissions: **Contents** read and write, **Issues** read and write, **Pull requests** read and write, **Commit statuses** read, **Actions** read, and **Metadata** read (added automatically). It is used only outside Copilot steps: checkout, `gh` calls, `git push`, and label application. Fine-grained PATs can't call the Checks API, so `gh pr checks` may fail. coding-bot then can't see failing checks, but it still handles review threads.
+1. **Add the `GH_PAT` secret.** Create a fine-grained PAT owned by your personal account (not an organization), with repository access set to only this repo and these repository permissions: **Contents** read and write, **Issues** read and write, **Pull requests** read and write, **Commit statuses** read, **Checks** read, **Actions** read, and **Metadata** read (added automatically). It is used only outside Copilot steps: checkout, `gh` calls, `git push`, and label application. It needs **Checks** read so coding-bot can see failing checks; if checks can't be read, the run fails instead of skipping the PR.
 2. **Add the `COPILOT_PAT` secret.** Create a separate fine-grained PAT owned by your personal account with only the Account permission **Copilot Requests** read. It is used as `COPILOT_GITHUB_TOKEN` in Copilot CLI steps. Those steps run with `--allow-all`, so this token must not have repo write access. Classic PATs are not supported by Copilot CLI.
 3. **Create the labels** used by the bots:
    ```bash
