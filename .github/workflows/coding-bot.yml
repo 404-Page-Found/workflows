@@ -65,13 +65,18 @@ jobs:
             [ "$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' <<< "$checks")" -gt 0 ]
           }
           # The issues endpoint filters by label server-side and pages in creation order (oldest first).
+          # Capture the list before iterating so an API error aborts discovery instead of looking like an empty list.
+          PRS=$(gh api --paginate "repos/$GH_REPO/issues?labels=bot-driving&state=open&sort=created&direction=asc&per_page=100" --jq '.[] | select(.pull_request) | .number') || {
+            echo "::error::Could not list bot-driving PRs; check that GH_PAT can read issues and pull requests." >&2
+            exit 1
+          }
           while read -r pr; do
             if is_actionable "$pr"; then
               echo "type=pr" >> "$GITHUB_OUTPUT"
               echo "number=$pr" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-          done < <(gh api --paginate "repos/$GH_REPO/issues?labels=bot-driving&state=open&sort=created&direction=asc&per_page=100" --jq '.[] | select(.pull_request) | .number')
+          done <<< "$PRS"
           issue=$(gh issue list --label assignee:coding-bot --state open --search "sort:created-asc" --limit 1 --json number --jq '.[0].number // empty')
           if [ -n "$issue" ]; then
             echo "type=issue" >> "$GITHUB_OUTPUT"
