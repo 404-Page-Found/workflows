@@ -70,7 +70,7 @@ jobs:
           IS_PR=$(gh api "repos/$GH_REPO/issues/$ITEM" --jq 'has("pull_request")')
           PLAN=$(jq -c --argjson allowed "$ALLOWED" --argjson is_pr "$IS_PR" '
             [(.labels // [])[]
-              | select(. != "assignee:coding-bot")
+              | select(. != "bot-driving" and . != "assignee:coding-bot")
               | select(. as $l | $allowed | index($l))]
             + (if .assignCoding == true and $is_pr == false and ($allowed | index("assignee:coding-bot")) then ["assignee:coding-bot"] else [] end)
             | unique | {labels: .}' "$RUNNER_TEMP/labels.json")
