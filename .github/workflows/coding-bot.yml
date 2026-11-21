@@ -49,14 +49,21 @@ jobs:
             if [ "$mergeable" = "CONFLICTING" ]; then
               return 0
             fi
-            threads=$(gh api graphql -F owner="$OWNER" -F repo="$REPO" -F number="$n" -f query='
-              query($owner: String!, $repo: String!, $number: Int!) {
+            threads=$(gh api graphql --paginate -F owner="$OWNER" -F repo="$REPO" -F number="$n" -f query='
+              query($owner: String!, $repo: String!, $number: Int!, $endCursor: String) {
                 repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $number) { reviewThreads(first: 100) { nodes { isResolved } } }
+                  pullRequest(number: $number) {
+                    reviewThreads(first: 100, after: $endCursor) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
+                  }
                 }
-              }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)] | length') || lookup_failed "$n"
+              }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)] | length' | jq -s 'add // 0') || lookup_failed "$n"
             if [ "$threads" -gt 0 ]; then
               return 0
+            fi
+            # A PR with no checks makes gh pr checks exit non-zero, so skip that lookup when the rollup is empty.
+            rollup=$(gh pr view "$n" --json statusCheckRollup --jq '.statusCheckRollup | length') || lookup_failed "$n"
+            if [ "$rollup" -eq 0 ]; then
+              return 1
             fi
             checks=$(gh pr checks "$n" --json bucket) || check_rc=$?
             if [ "$check_rc" -ne 0 ] && [ "$check_rc" -ne 8 ]; then
@@ -71,7 +78,7 @@ jobs:
             exit 1
           }
           while read -r pr; do
-            if is_actionable "$pr"; then
+            if [ -n "$pr" ] && is_actionable "$pr"; then
               echo "type=pr" >> "$GITHUB_OUTPUT"
               echo "number=$pr" >> "$GITHUB_OUTPUT"
               exit 0
@@ -253,19 +260,23 @@ jobs:
           echo "conflicts=$CONFLICTS" >> "$GITHUB_OUTPUT"
           OWNER=${GH_REPO%%/*}
           REPO=${GH_REPO##*/}
-          THREADS=$(gh api graphql -F owner="$OWNER" -F repo="$REPO" -F number="$ITEM" -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
+          THREADS=$(gh api graphql --paginate -F owner="$OWNER" -F repo="$REPO" -F number="$ITEM" -f query='
+            query($owner: String!, $repo: String!, $number: Int!, $endCursor: String) {
               repository(owner: $owner, name: $repo) {
                 pullRequest(number: $number) {
-                  reviewThreads(first: 100) {
-                    pageInfo { hasNextPage }
+                  reviewThreads(first: 100, after: $endCursor) {
+                    pageInfo { hasNextPage endCursor }
                     nodes { isResolved path line comments(first: 20) { nodes { author { login } body } } }
                   }
                 }
               }
-            }' --jq '.data.repository.pullRequest.reviewThreads.nodes | [.[] | select(.isResolved | not)]')
+            }' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)' | jq -cs '.')
+          CHECKS='[]'
           CHECKS_RC=0
-          CHECKS=$(gh pr checks "$ITEM" --json name,bucket,link --jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")]') || CHECKS_RC=$?
+          ROLLUP=$(gh pr view "$ITEM" --json statusCheckRollup --jq '.statusCheckRollup | length')
+          if [ "$ROLLUP" -gt 0 ]; then
+            CHECKS=$(gh pr checks "$ITEM" --json name,bucket,link --jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")]') || CHECKS_RC=$?
+          fi
           if [ "$CHECKS_RC" -ne 0 ] && [ "$CHECKS_RC" -ne 8 ]; then
             echo "::error::Could not read checks for PR #$ITEM; GH_PAT needs Checks: read." >&2
             exit 1
@@ -292,6 +303,19 @@ jobs:
           Keep changes minimal. Run existing tests or lint when available. Do not commit or push; the workflow does that. Never modify files under .github/ or any secrets. Do not resolve threads.
           EOF
           copilot -p "$(cat "$RUNNER_TEMP/prompt.md")" --model claude-haiku-5.5 --allow-all
+
+      - name: Hand back PR if a failed run left a rebase in progress
+        if: failure() && needs.discover.outputs.type == 'pr' && steps.gate.outputs.rebased == 'true'
+        env:
+          ITEM: ${{ needs.discover.outputs.number }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]; then
+            git rebase --abort
+            gh pr comment "$ITEM" --body "coding-bot could not resolve the merge conflicts on this PR, so it is handing it back to humans."
+            gh pr edit "$ITEM" --remove-label bot-driving
+          fi
 
       - name: Commit and push review fixes
         if: needs.discover.outputs.type == 'pr' && (steps.gate.outputs.needed == 'true' || steps.gate.outputs.rebased == 'true')
@@ -322,4 +346,8 @@ jobs:
             git push --force-with-lease
           elif [ "$COMMITTED" = true ]; then
             git push
+          else
+            # Release the PR so a run that changes nothing does not select it again.
+            gh pr comment "$ITEM" --body "coding-bot made no changes to this PR, so it is handing it back to humans."
+            gh pr edit "$ITEM" --remove-label bot-driving
           fi
