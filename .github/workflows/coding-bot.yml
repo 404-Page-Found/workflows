@@ -242,14 +242,12 @@ jobs:
           REBASED=false
           CONFLICTS=false
           if [ "$(gh pr view "$ITEM" --json mergeable --jq .mergeable)" = "CONFLICTING" ]; then
-            if [ -n "$(git rev-list --merges "origin/$BASE..HEAD")" ]; then
-              hand_back "coding-bot cannot rebase this PR because its branch contains merge commits, so it is handing it back to humans."
-            fi
             read -r BOT_LOGIN BOT_ID < <(gh api user --jq '"\(.login) \(.id)"')
             git config user.name "$BOT_LOGIN"
             git config user.email "$BOT_ID+$BOT_LOGIN@users.noreply.github.com"
             REBASED=true
-            if ! git rebase "origin/$BASE"; then
+            # --rebase-merges keeps existing merge commits instead of failing on them.
+            if ! git rebase --rebase-merges "origin/$BASE"; then
               UNMERGED=$(git diff --name-only --diff-filter=U)
               if printf '%s\n' "$UNMERGED" | grep -q '^\.github/'; then
                 git rebase --abort
