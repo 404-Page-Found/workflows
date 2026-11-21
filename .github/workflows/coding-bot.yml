@@ -181,9 +181,12 @@ jobs:
           $(git diff --cached --patch | head -c 20000)
           </diff>
           EOF
-          SUBJECT=$(copilot -p "$(cat "$RUNNER_TEMP/commit-prompt.md")" --model claude-haiku-5.5 --allow-all 2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' | head -n 1 | sed -e 's/^[[:space:]"`]*//' -e 's/[[:space:]"`]*$//') || true
+          SUBJECT=""
+          if RAW=$(copilot -p "$(cat "$RUNNER_TEMP/commit-prompt.md")" --model claude-haiku-5.5 --allow-all 2>/dev/null); then
+            SUBJECT=$(printf '%s\n' "$RAW" | tr -d '\r' | grep -v '^[[:space:]]*$' | head -n 1 | sed -e 's/^[[:space:]"`]*//' -e 's/[[:space:]"`]*$//') || true
+          fi
           if [ -n "$SUBJECT" ] && ! [[ "$SUBJECT" =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.+\))?!?:[[:space:]].+ ]]; then
-            SUBJECT="chore: $SUBJECT"
+            SUBJECT=""
           fi
           if [ -n "$SUBJECT" ]; then
             printf '%s\n' "$SUBJECT" | cut -c1-72 > "$RUNNER_TEMP/commit-message.txt"
@@ -370,9 +373,12 @@ jobs:
           $(git diff --cached --patch | head -c 20000)
           </diff>
           EOF
-          SUBJECT=$(copilot -p "$(cat "$RUNNER_TEMP/commit-prompt.md")" --model claude-haiku-5.5 --allow-all 2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' | head -n 1 | sed -e 's/^[[:space:]"`]*//' -e 's/[[:space:]"`]*$//') || true
+          SUBJECT=""
+          if RAW=$(copilot -p "$(cat "$RUNNER_TEMP/commit-prompt.md")" --model claude-haiku-5.5 --allow-all 2>/dev/null); then
+            SUBJECT=$(printf '%s\n' "$RAW" | tr -d '\r' | grep -v '^[[:space:]]*$' | head -n 1 | sed -e 's/^[[:space:]"`]*//' -e 's/[[:space:]"`]*$//') || true
+          fi
           if [ -n "$SUBJECT" ] && ! [[ "$SUBJECT" =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.+\))?!?:[[:space:]].+ ]]; then
-            SUBJECT="chore: $SUBJECT"
+            SUBJECT=""
           fi
           if [ -n "$SUBJECT" ]; then
             printf '%s\n' "$SUBJECT" | cut -c1-72 > "$RUNNER_TEMP/commit-message.txt"
