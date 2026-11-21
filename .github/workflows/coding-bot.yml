@@ -73,8 +73,8 @@ jobs:
           }
           # The issues endpoint filters by label server-side and pages in creation order (oldest first).
           # Capture the list before iterating so an API error aborts discovery instead of looking like an empty list.
-          PRS=$(gh api --paginate "repos/$GH_REPO/issues?labels=bot-driving&state=open&sort=created&direction=asc&per_page=100" --jq '.[] | select(.pull_request) | .number') || {
-            echo "::error::Could not list bot-driving PRs; check that GH_PAT can read issues and pull requests." >&2
+          PRS=$(gh api --paginate "repos/$GH_REPO/issues?labels=assignee:coding-bot&state=open&sort=created&direction=asc&per_page=100" --jq '.[] | select(.pull_request) | .number') || {
+            echo "::error::Could not list assignee:coding-bot PRs; check that GH_PAT can read issues and pull requests." >&2
             exit 1
           }
           while read -r pr; do
@@ -248,7 +248,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          gh pr create --head "bot/issue-$ITEM" --title "$TITLE" --body "Closes #$ITEM" --label bot-driving
+          gh pr create --head "bot/issue-$ITEM" --title "$TITLE" --body "Closes #$ITEM" --label assignee:coding-bot
           gh issue edit "$ITEM" --remove-label assignee:coding-bot
 
       - name: Check out PR and decide whether work is needed
@@ -264,7 +264,7 @@ jobs:
           git fetch -q origin "$BASE"
           hand_back() {
             gh pr comment "$ITEM" --body "$1"
-            gh pr edit "$ITEM" --remove-label bot-driving
+            gh pr edit "$ITEM" --remove-label assignee:coding-bot
             echo "needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           }
@@ -348,7 +348,7 @@ jobs:
           if [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]; then
             git rebase --abort
             gh pr comment "$ITEM" --body "coding-bot could not resolve the merge conflicts on this PR, so it is handing it back to humans."
-            gh pr edit "$ITEM" --remove-label bot-driving
+            gh pr edit "$ITEM" --remove-label assignee:coding-bot
           fi
 
       - name: Generate review fixes commit message
@@ -398,7 +398,7 @@ jobs:
             # Hand the PR back so an unresolvable conflict does not keep it selected on every run.
             git rebase --abort
             gh pr comment "$ITEM" --body "coding-bot could not resolve the merge conflicts on this PR, so it is handing it back to humans."
-            gh pr edit "$ITEM" --remove-label bot-driving
+            gh pr edit "$ITEM" --remove-label assignee:coding-bot
             echo "::error::A rebase is still in progress; merge conflicts were not resolved." >&2
             exit 1
           fi
@@ -418,7 +418,7 @@ jobs:
           else
             # Release the PR so a run that changes nothing does not select it again.
             gh pr comment "$ITEM" --body "coding-bot made no changes to this PR, so it is handing it back to humans."
-            gh pr edit "$ITEM" --remove-label bot-driving
+            gh pr edit "$ITEM" --remove-label assignee:coding-bot
           fi
 
       - name: Resolve review threads addressed by the bot
