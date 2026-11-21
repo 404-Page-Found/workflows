@@ -242,8 +242,8 @@ jobs:
           REBASED=false
           CONFLICTS=false
           if [ "$(gh pr view "$ITEM" --json mergeable --jq .mergeable)" = "CONFLICTING" ]; then
-            # Combined diffs show only hunks that differ from every parent, i.e. manual merge resolutions that --rebase-merges would not replay.
-            if [ -n "$(git rev-list --merges "origin/$BASE..HEAD" | xargs -r -n1 git show --cc --format= --name-only)" ]; then
+            # Remerge diffs show edits that differ from git's automatic remerge, i.e. manual merge resolutions that --rebase-merges would not replay.
+            if [ -n "$(git rev-list --merges "origin/$BASE..HEAD" | xargs -r -n1 git show --remerge-diff --format= --name-only)" ]; then
               hand_back "coding-bot cannot rebase this PR because it contains merge commits with manual conflict resolutions, so it is handing it back to humans."
             fi
             read -r BOT_LOGIN BOT_ID < <(gh api user --jq '"\(.login) \(.id)"')
