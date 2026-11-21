@@ -416,27 +416,38 @@ jobs:
             git push --force-with-lease
           elif [ "$COMMITTED" = true ]; then
             git push
-          else
+          fi
+          if [ "$COMMITTED" = false ]; then
+            # Declined-thread handling is best effort so a failed reply or resolve still reaches the hand-back.
             if [ -f "$RUNNER_TEMP/declined.json" ]; then
-              jq -e 'type == "array"' "$RUNNER_TEMP/declined.json" > /dev/null
-              OPEN_IDS=$(jq -r '.[].id' "$RUNNER_TEMP/threads.json")
-              jq -c '.[]' "$RUNNER_TEMP/declined.json" | while read -r ENTRY; do
-                ID=$(jq -r '.id' <<< "$ENTRY")
-                REASON=$(jq -r '.reason // ""' <<< "$ENTRY")
-                if ! grep -qxF "$ID" <<< "$OPEN_IDS"; then
-                  echo "Skipping $ID: not an unresolved thread on #$ITEM"
-                  continue
-                fi
-                gh api graphql -f id="$ID" -f body="coding-bot made no changes to this thread: $REASON" -f query='
-                  mutation($id: ID!, $body: String!) {
-                    addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $id, body: $body}) { comment { id } }
-                  }' > /dev/null
-                gh api graphql -f id="$ID" -f query='
-                  mutation($id: ID!) {
-                    resolveReviewThread(input: {threadId: $id}) { thread { isResolved } }
-                  }' > /dev/null
-                echo "Replied to and resolved declined thread $ID: $REASON"
-              done
+              if ! jq -e 'type == "array"' "$RUNNER_TEMP/declined.json" > /dev/null; then
+                echo "::warning::declined.json is not a JSON array; skipping declined-thread replies."
+              else
+                OPEN_IDS=$(jq -r '.[].id' "$RUNNER_TEMP/threads.json")
+                jq -c '.[]' "$RUNNER_TEMP/declined.json" | while read -r ENTRY; do
+                  ID=$(jq -r '.id' <<< "$ENTRY") || continue
+                  REASON=$(jq -r '.reason // ""' <<< "$ENTRY") || REASON=""
+                  if ! grep -qxF "$ID" <<< "$OPEN_IDS"; then
+                    echo "Skipping $ID: not an unresolved thread on #$ITEM"
+                    continue
+                  fi
+                  if ! gh api graphql -f id="$ID" -f body="coding-bot made no changes to this thread: $REASON" -f query='
+                    mutation($id: ID!, $body: String!) {
+                      addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $id, body: $body}) { comment { id } }
+                    }' > /dev/null; then
+                    echo "::warning::Failed to reply to declined thread $ID"
+                    continue
+                  fi
+                  if ! gh api graphql -f id="$ID" -f query='
+                    mutation($id: ID!) {
+                      resolveReviewThread(input: {threadId: $id}) { thread { isResolved } }
+                    }' > /dev/null; then
+                    echo "::warning::Replied to declined thread $ID but failed to resolve it"
+                    continue
+                  fi
+                  echo "Replied to and resolved declined thread $ID: $REASON"
+                done || echo "::warning::Declined-thread processing did not complete."
+              fi
             fi
             # Release the PR so a run that changes nothing does not select it again.
             gh pr comment "$ITEM" --body "coding-bot made no changes to this PR, so it is handing it back to humans."
@@ -457,16 +468,19 @@ jobs:
           jq -e 'type == "array"' "$RUNNER_TEMP/resolve.json" > /dev/null
           OPEN_IDS=$(jq -r '.[].id' "$RUNNER_TEMP/threads.json")
           jq -c '.[]' "$RUNNER_TEMP/resolve.json" | while read -r ENTRY; do
-            ID=$(jq -r '.id' <<< "$ENTRY")
-            REASON=$(jq -r '.reason // ""' <<< "$ENTRY")
+            ID=$(jq -r '.id' <<< "$ENTRY") || continue
+            REASON=$(jq -r '.reason // ""' <<< "$ENTRY") || REASON=""
             # Only resolve threads that were unresolved on this PR when the run started.
             if ! grep -qxF "$ID" <<< "$OPEN_IDS"; then
               echo "Skipping $ID: not an unresolved thread on #$ITEM"
               continue
             fi
-            gh api graphql -F id="$ID" -f query='
+            if ! gh api graphql -F id="$ID" -f query='
               mutation($id: ID!) {
                 resolveReviewThread(input: {threadId: $id}) { thread { isResolved } }
-              }' > /dev/null
+              }' > /dev/null; then
+              echo "::warning::Failed to resolve thread $ID"
+              continue
+            fi
             echo "Resolved thread $ID: $REASON"
-          done
+          done || echo "::warning::Thread resolution did not complete."
