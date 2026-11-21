@@ -1,7 +1,7 @@
 Create GitHub Actions workflows and docs for repo maintenance in this repository. Keep files concise.
 
 Global rules:
-- Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) - Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) and run it non-interactively with `copilot -p "<prompt>" --model claude-haiku-5.5 --allow-all`.
+- Bot workflows, except merge-bot, install GitHub Copilot CLI via npm without pinning the version (`npm i -g @github/copilot`) and run it non-interactively with `copilot -p "<prompt>" --model claude-haiku-5.5 --allow-all`.
 - Two repo secrets are used, and the Copilot CLI token must be isolated from the repo-write token. `GH_PAT` (my GitHub PAT) is used for checkout, all `gh`/API calls, label application, and `git push`, and never in a step that runs Copilot CLI. It must be a fine-grained PAT owned by my personal account, scoped to this repo, with repository permissions Contents, Issues, Pull requests, Commit statuses, Checks, Actions (read), and Metadata (read). `COPILOT_PAT` is used only as `COPILOT_GITHUB_TOKEN` in Copilot CLI steps. It must be a fine-grained PAT owned by my personal account with only the Account permission Copilot Requests: read. Classic PATs are not supported by Copilot CLI. Copilot steps get job-scoped `GITHUB_TOKEN` (`${{ github.token }}`) for `gh` calls, with least-privilege `permissions`.
 - Use `persist-credentials: false` on every checkout so the token is not written to `.git/config`.
 - Every workflow has a `workflow_dispatch` trigger as a manual fallback.
