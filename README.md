@@ -47,7 +47,7 @@ Every workflow also has a `workflow_dispatch` trigger for manual runs.
 | --- | --- |
 | `bug-bot` | Every 3 hours, files up to 5 non-duplicate bug issues, sharing the budget with `refactor-bot`. |
 | `refactor-bot` | Every 3 hours, files up to 5 non-duplicate refactor issues, sharing the same budget. |
-| `coding-bot` | Implements issues labeled `assignee:coding-bot` as PRs labeled `bot-driving` (only while at most 5 `bot-driving` PRs are open), then drives those PRs through review comments and failing checks. |
+| `coding-bot` | Implements issues labeled `assignee:coding-bot` as PRs labeled `bot-driving` (only while at most 5 `bot-driving` PRs are open), then drives those PRs through review comments and failing checks. Resolves review threads it addressed or that were already fixed by an existing commit; declined threads stay open for humans. |
 | `label-bot` | Applies existing labels to new issues and PRs. Adds `assignee:coding-bot` only to implementation-ready issues from writers. |
 | `triage-bot` | Posts one triage comment on each new issue: validity, location, severity, and next step. |
 | `merge-bot` | Squash-merges non-draft PRs that have green checks, no conflicts, and no unresolved review threads. |
