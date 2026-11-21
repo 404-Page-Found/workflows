@@ -23,7 +23,7 @@ Steps:
 6. Open a pull request into the default branch with `gh pr create`, using a body that lists each workflow as added or updated, and the setup steps below.
 7. Delete the temporary clone.
 8. Report back in 100 words or fewer, and include these one-time setup steps for me to run (do not run them without confirmation):
-   - Create labels: `gh label create "assignee:coding-bot" --force` and `gh label create "bot-driving" --force`
+   - Create label: `gh label create "assignee:coding-bot" --force`
    - Add repository secrets: `GH_PAT` (fine-grained PAT scoped to this repo with the repository permissions listed in Setup; used for checkout, `gh` calls, and `git push`) and `COPILOT_PAT` (fine-grained PAT with only the Account permission Copilot Requests: read; used for Copilot CLI authentication).
 
 Never print, log, or commit secret values.
@@ -33,10 +33,9 @@ Never print, log, or commit secret values.
 
 1. **Add the `GH_PAT` secret.** Create a fine-grained PAT owned by your personal account (not an organization), with repository access set to only this repo and these repository permissions: **Contents** read and write, **Issues** read and write, **Pull requests** read and write, **Commit statuses** read, **Checks** read, **Actions** read, and **Metadata** read (added automatically). It is used only outside Copilot steps: checkout, `gh` calls, `git push`, and label application. It needs **Checks** read so coding-bot can see failing checks; if checks can't be read, the run fails instead of skipping the PR.
 2. **Add the `COPILOT_PAT` secret.** Create a separate fine-grained PAT owned by your personal account with only the Account permission **Copilot Requests** read. It is used as `COPILOT_GITHUB_TOKEN` in Copilot CLI steps. Those steps run with `--allow-all`, so this token must not have repo write access. Classic PATs are not supported by Copilot CLI.
-3. **Create the labels** used by the bots:
+3. **Create the label** used by the bots:
    ```bash
    gh label create "assignee:coding-bot" --force
-   gh label create "bot-driving" --force
    ```
 
 Every workflow also has a `workflow_dispatch` trigger for manual runs.
@@ -47,7 +46,7 @@ Every workflow also has a `workflow_dispatch` trigger for manual runs.
 | --- | --- |
 | `bug-bot` | Every 3 hours, files up to 5 non-duplicate bug issues, sharing the budget with `refactor-bot`. |
 | `refactor-bot` | Every 3 hours, files up to 5 non-duplicate refactor issues, sharing the same budget. |
-| `coding-bot` | Processes one item per run. Runs share `concurrency: coding-bot` with `cancel-in-progress: false`, so one run is active at a time and at most one run is pending; a newer pending run replaces an older one. It drives the oldest open `bot-driving` PR that is actionable (unresolved review threads, failing checks, or merge conflicts) through review comments and failing checks, rebasing the PR branch onto its base and resolving merge conflicts when needed (force-pushing with lease). Conflicting PRs are rebased with `git rebase --rebase-merges`, so existing merge commits are replayed; conflicting PRs whose merge commits contain manual conflict resolutions, or whose conflicts are under `.github/`, are handed back to humans, and so is a PR whose run makes no change (its `bot-driving` label is removed). It resolves review threads it addressed or that an existing commit already fixed; declined threads stay open for humans. Otherwise it implements the oldest issue labeled `assignee:coding-bot` as a PR labeled `bot-driving`. |
+| `coding-bot` | Processes one item per run. Runs share `concurrency: coding-bot` with `cancel-in-progress: false`, so one run is active at a time and at most one run is pending; a newer pending run replaces an older one. It drives the oldest open `assignee:coding-bot` PR that is actionable (unresolved review threads, failing checks, or merge conflicts) through review comments and failing checks, rebasing the PR branch onto its base and resolving merge conflicts when needed (force-pushing with lease). Conflicting PRs are rebased with `git rebase --rebase-merges`, so existing merge commits are replayed; conflicting PRs whose merge commits contain manual conflict resolutions, or whose conflicts are under `.github/`, are handed back to humans, and so is a PR whose run makes no change (its `assignee:coding-bot` label is removed). It resolves review threads it addressed or that an existing commit already fixed; declined threads stay open for humans. Otherwise it implements the oldest issue labeled `assignee:coding-bot` as a PR labeled `assignee:coding-bot`. |
 | `label-bot` | Applies existing labels to new issues and PRs. Adds `assignee:coding-bot` only to implementation-ready issues from writers. |
 | `triage-bot` | Posts one triage comment on each new issue: validity, location, severity, and next step. |
 | `merge-bot` | Squash-merges non-draft PRs that have green checks, no conflicts, and no unresolved review threads. |
